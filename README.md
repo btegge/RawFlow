@@ -15,7 +15,28 @@ On the tested daylight sample, export time decreased from 41 seconds to roughly 
 
 ## Installation
 
-### On the already configured Mac
+### Automatic installation (Apple Silicon macOS)
+
+Clone or download this repository, then run the installer from Terminal:
+
+```sh
+git clone https://github.com/btegge/RawFlow.git
+cd RawFlow
+./install-macos.sh
+open /Applications/RawFlow.app
+```
+
+Run the script as your normal user, **without sudo**. Internet access is required. It checks for [Homebrew](https://brew.sh/), installs it if missing, and installs missing Python 3.12, [Tk support](https://formulae.brew.sh/formula/python-tk@3.12), [ExifTool](https://formulae.brew.sh/formula/exiftool), and the RawTherapee Homebrew cask. Homebrew may request administrator access and install Apple's Command Line Tools; complete any installation dialog and rerun the script if necessary. Run in a native Apple Silicon Terminal, outside Rosetta. The [current RawTherapee cask](https://formulae.brew.sh/cask/rawtherapee) requires macOS 26 or newer; on older macOS, install a compatible RawTherapee build manually before running this script (Homebrew dependencies must also support your OS).
+
+The installer copies the program and profiles to a unique version folder under `~/Library/Application Support/RawFlow/versions/`, creates an isolated Python environment, installs the pinned Python dependencies, checks imports and runs `rawflow doctor`. It then installs **RawFlow.app** in `/Applications`, requesting administrator access only if needed. The app uses this per-user runtime, so launch it from the account that installed it. You can move or delete the downloaded source folder afterward. Keep Homebrew and the installed runtime available.
+
+The installer reuses existing tools and installs the currently available Homebrew RawTherapee release when missing. Only RawTherapee 5.13 has been validated with this project's samples; another release may require adapter changes. Installation does not establish RAW compatibility: in the app's **Setup**, add a camera RAW file and use **Validate selected sample** before editing. See the validation instructions below. Darktable is optional and is not installed.
+
+To update, download or pull the latest source and rerun `./install-macos.sh` after quitting RawFlow. Existing apps are saved as `/Applications/RawFlow.backup-*.app`; previous runtimes, settings, evidence, and work are retained. Each new installation starts with fresh settings and validation. Previous paths can be selected in Setup when compatible. Launcher errors are logged in `work/launcher.log` inside that installation's version folder. Do not delete old version folders while their app, records, or exports are still needed.
+
+To uninstall, remove `/Applications/RawFlow.app` and any backup apps. Remove `~/Library/Application Support/RawFlow` only after preserving settings, evidence, and processing records you need. Shared Homebrew tools are left installed.
+
+### On the already configured development Mac
 
 For an installation with configured local dependencies, open the source checkout. The Python runtime and processors are already configured. Double-click **RawFlow.app** or **launch-gui.command** in that folder.
 
@@ -29,7 +50,7 @@ cd /path/to/RawFlow
 
 `run-local.sh` reads optional machine-specific paths from ignored `work/local-env.sh`; the GUI reads optional `work/local-tools.json`. Keep those dependencies available. The included app is configured for this Mac; it is not a standalone installer.
 
-### On a fresh Apple Silicon Mac
+### Manual source installation on an Apple Silicon Mac
 
 1. Clone or download this repository into a permanent, writable folder. Keep `rawflow/`, `profiles/`, and the other project files together:
 
@@ -85,7 +106,7 @@ Start the desktop interface from the same Terminal session:
 
 In **Setup**, select your processor, ExifTool, base PP3 and new compatibility record. Save the setup. You can also add a RAW file to the queue and use **Validate selected sample** to run the compatibility check through the interface. Settings are remembered in `work/desktop-settings.json`.
 
-The repository includes app metadata and icon artwork, but excludes the compiled launcher and machine-specific runtime paths. The local `RawFlow.app` and `launch-gui.command` depend on a configured embedded Python 3.12 runtime. On a fresh installation, use `rawflow-gui` as above. `desktop/build-app.sh` rebuilds the native launcher for the configured embedded runtime; it does not bundle dependencies or create a portable installer. Rebuilding requires Apple's command-line developer tools.
+For development, the repository includes app metadata and icon artwork, but excludes the compiled launcher and machine-specific runtime paths. The local `RawFlow.app` and `launch-gui.command` depend on a configured embedded Python 3.12 runtime. On a fresh installation, use `rawflow-gui` as above. `desktop/build-app.sh` rebuilds the native launcher for the configured embedded runtime; it does not bundle dependencies or create a portable installer. Rebuilding requires Apple's command-line developer tools.
 
 ## Using the desktop app
 
