@@ -1,0 +1,18 @@
+{
+  "rawtherapee.zip": {
+    "url": "https://github.com/RawTherapee/RawTherapee/releases/download/5.13/RawTherapee_MacOS_26.0_Universal_5.13.zip",
+    "sha256": "795a32a688afa5b127dfd768c25c77649859ababa206352e865f6587c66c45a7"
+  },
+  "darktable.dmg": {
+    "url": "https://github.com/darktable-org/darktable/releases/download/release-5.6.2/darktable-5.6.2-arm64.dmg",
+    "sha256": "6ff88e58a2a59cb07b0a1502fea7205e68cd783380a33a3ce7bda68ec29def0c"
+  },
+  "exiftool.tar.gz": {
+    "url": "https://github.com/exiftool/exiftool/archive/refs/tags/13.55.tar.gz",
+    "sha256": "5c9d422ad128fab728aacc5cc0aa77095d14cde74931389dd961d3d720e6b316"
+  },
+  "7z.tar.xz": {
+    "url": "https://www.7-zip.org/a/7z2501-mac.tar.xz",
+    "sha256": "26aa75bc262bb10bf0805617b95569c3035c2c590a99f7db55c7e9607b2685e0"
+  }
+}
