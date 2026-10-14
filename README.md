@@ -31,7 +31,12 @@ cd /path/to/RawFlow
 
 ### On a fresh Apple Silicon Mac
 
-1. Clone or download this repository into a permanent, writable folder. Keep `rawflow/`, `profiles/`, and the other project files together.
+1. Clone or download this repository into a permanent, writable folder. Keep `rawflow/`, `profiles/`, and the other project files together:
+
+   ```sh
+   git clone https://github.com/btegge/RawFlow.git
+   cd RawFlow
+   ```
 2. Install Python with Tk support from the [official macOS downloads](https://www.python.org/downloads/macos/). The tested runtime is Python 3.12; the project requires Python 3.11 or newer. Confirm Tk works before launching the desktop interface.
 3. Install **RawTherapee 5.13** from its [official downloads](https://www.rawtherapee.com/downloads/), placing the application in `/Applications`. This is the processor version demonstrated with the supplied CR3 files and PP3 profile. Other versions require new compatibility evidence and may need adapter changes.
 4. Install **ExifTool** using its [official distribution](https://exiftool.org/). It supplies camera metadata and embedded preview extraction.
