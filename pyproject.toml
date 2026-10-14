@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "rawflow"
-version = "0.5.0"
+version = "0.6.0"
 description = "Evidence-gated non-destructive RAW editing"
 requires-python = ">=3.11"
 dependencies = ["numpy>=2,<3", "Pillow>=11,<13"]

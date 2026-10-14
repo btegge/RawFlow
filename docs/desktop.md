@@ -53,3 +53,9 @@ The CLI accepts `--strength low|medium|high`. Recipes record strength and factor
 ## App identity and control borders
 
 The packaged launcher exports a small Cocoa icon setter, called after Tk initializes its application. It assigns the full-size bundled icon to the running NSApplication for Dock and app-switcher identity. The same artwork appears in the editor header. Fields, photo-list borders, scrollbars and the progress bar use dark low-contrast outlines; focused input fields retain a subtle blue indication. The launcher is compiled as Objective-C with Cocoa support by `desktop/build-app.sh`.
+
+## Multi-camera discovery and fallback previews (0.6)
+
+The file chooser and folder importer accept candidate RAW extensions from multiple brands. ExifTool checks content and supplies optional camera metadata; processing verifies each file through a RAW render. Unsupported camera modes fail per file while the remaining queue continues. The engine/profile compatibility record still requires a successful spike, and does not certify all cameras.
+
+When an embedded JPEG is unavailable or unreadable, the GUI uses a cached, ICC-tagged neutral RAW preview labeled “RAW preview”. The first fallback can take several seconds; subsequent requests reuse the cache until source bytes, the profile, or engine identity change. Only R7 C-RAW has actual-file validation so far.

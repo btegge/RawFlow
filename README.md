@@ -1,6 +1,6 @@
 # RawFlow
 
-A local, non-destructive Canon EOS R7 CR3 editor for Apple Silicon macOS. RawTherapee develops the RAW files, Python analyzes color-managed previews, and a desktop interface provides batch editing and before/after comparisons. Original RAW files and adjacent sidecars stay untouched.
+A local, non-destructive camera RAW editor for Apple Silicon macOS. Candidate formats include Canon CR2/CR3, Nikon NEF/NRW, Sony ARW, Fujifilm RAF, Olympus/OM ORF, Panasonic RW2, Pentax PEF and DNG. Actual support depends on the installed RAW engine, camera model and recording mode; only the supplied Canon R7 C-RAW samples have been validated end to end. RawTherapee develops the RAW files, Python analyzes color-managed previews, and a desktop interface provides batch editing and before/after comparisons. Original RAW files and adjacent sidecars stay untouched.
 
 ## Features
 
@@ -65,9 +65,9 @@ Replace the ExifTool path with your actual installation location. Prefer RawTher
 
 Darktable is optional for the backend comparison, not required for normal edits. To include it, install the tested darktable 5.6.2 build and set `RAWFLOW_DARKTABLE_CLI` to its CLI executable.
 
-### Validate a real CR3 before editing
+### Validate RAW engine controls before editing
 
-Compatibility records are tied to the processor binary, bundled assets and base profile. The record from another Mac does not automatically validate your installation. Supply one of your actual Canon EOS R7 CR3 files:
+Compatibility records are tied to the processor binary, bundled assets and base profile. The record from another Mac does not automatically validate your installation. Supply an actual camera RAW file the processor can decode:
 
 ```sh
 .venv/bin/rawflow spike /absolute/path/to/sample.CR3 \
@@ -83,13 +83,13 @@ Start the desktop interface from the same Terminal session:
 .venv/bin/rawflow-gui
 ```
 
-In **Setup**, select your processor, ExifTool, base PP3 and new compatibility record. Save the setup. You can also add a CR3 to the queue and use **Validate selected sample** to run the compatibility check through the interface. Settings are remembered in `work/desktop-settings.json`.
+In **Setup**, select your processor, ExifTool, base PP3 and new compatibility record. Save the setup. You can also add a RAW file to the queue and use **Validate selected sample** to run the compatibility check through the interface. Settings are remembered in `work/desktop-settings.json`.
 
 The repository includes app metadata and icon artwork, but excludes the compiled launcher and machine-specific runtime paths. The local `RawFlow.app` and `launch-gui.command` depend on a configured embedded Python 3.12 runtime. On a fresh installation, use `rawflow-gui` as above. `desktop/build-app.sh` rebuilds the native launcher for the configured embedded runtime; it does not bundle dependencies or create a portable installer. Rebuilding requires Apple's command-line developer tools.
 
 ## Using the desktop app
 
-1. Add photos or a folder of CR3 files.
+1. Add photos or a folder of candidate RAW files.
 2. Select a look and strength. The draft preview updates in the background.
 3. Choose brightness and white balance. **Camera white balance** is fastest and preserves colored lighting; **Find neutral colors** performs an optional temperature search.
 4. Choose a save folder and select **Edit all photos**.
@@ -112,7 +112,7 @@ On this configured Mac, replace `.venv/bin/rawflow` below with `./run-local.sh` 
 
 Look names are `natural`, `punchy`, `saturated`, `black-and-white`, `filmic`, and `arty`. Strength names are `low`, `medium`, and `high`; defaults are Punchy and Low. Optional policies are `--scene preserve|normal` and `--wb camera|neutral-search`.
 
-The CLI expands quoted globs, publishes numbered JPEGs including look and strength, refuses to overwrite existing files, and prints separate recipe paths. It stops on the first error; the desktop continues with remaining photos.
+The CLI expands quoted globs, publishes numbered JPEGs including look and strength, refuses to overwrite existing files, and prints separate recipe paths. Both CLI editing and the desktop continue with remaining photos when a file fails; CLI editing returns a nonzero exit code if any failed.
 
 Replay a recorded edit:
 
@@ -154,7 +154,7 @@ Recipes record source/profile/export checksums, processor identity, settings, st
 
 ## Validation and limits
 
-The automated suite has 41 passing tests, covering source preservation, evidence checks, JPEG publication, replay hashing, preset strengths and job coordination:
+The automated suite has 48 passing tests, covering source preservation, evidence checks, JPEG publication, replay hashing, preset strengths and job coordination:
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
@@ -163,3 +163,11 @@ The automated suite has 41 passing tests, covering source preservation, evidence
 Actual-file validation includes six presets, Medium/High exports, four lighting scenes, identical-pixel replay and desktop editing. The provided samples are Canon C-RAW at ISO 100. Full RAW and higher ISO still need validation. Camera-profile fidelity, lens corrections, skin tones and broader lighting conditions need further review. There is no calibrated aesthetic score, ML optimization or TIFF export.
 
 See [feasibility](docs/feasibility.md), [performance](docs/performance.md), [desktop documentation](docs/desktop.md), and [milestones](docs/milestones.md). RawFlow uses the MIT license; Python, Tk, Pillow, NumPy and the external processors retain their own licenses.
+
+## Multi-camera input handling (0.6)
+
+Stages 1 and 2 are implemented: centralized RAW-extension discovery, generic optional camera metadata, content checks that reject renamed JPEG/PNG files, per-file engine decoding records, and mixed-camera batch handling. The existing successful spike proves engine/profile parameter controls, not compatibility with every incoming camera. Each input still has to decode into an ICC-tagged preview before presets and final export. A decoding pass does not prove correct colors or support for all modes of that camera.
+
+Preview extraction tries several embedded JPEG tags. If none is usable, the GUI renders a neutral RAW preview with the validated profile and processor. It stores the result in `work/preview-cache/`, keyed by source bytes, base profile and engine identity. `RAWFLOW_PREVIEW_CACHE` changes that location. Original files and sidecars stay protected; preview records do not appear in the JPEG export folder.
+
+Stage 3 remains pending because other-camera samples are unavailable. Bayer/X-Trans settings and automatic camera input-profile selection are inherited from the baseline and have not been validated across brands. The R7 regression and a deliberately forced RAW-preview fallback were tested with a real CR3; mocked NEF/RAF/ARW tests verify control flow and safety, not decoder compatibility.

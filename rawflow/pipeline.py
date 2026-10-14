@@ -59,7 +59,7 @@ def spike(raw, base, out, dt_profiles=None):
     report['original_preserved'] = digest(raw) == report['source_sha256']
     report['status'] = 'complete'
     report['rt_identity'] = rt_identity() if report['rawtherapee']['status'] == 'passed' else None
-    report['scope'] = 'This sample only; visually inspect renders. A pass does not certify all R7 RAW modes.'
+    report['scope'] = 'This sample only; visually inspect renders. A pass does not certify other cameras or RAW modes.'
     save_json(out / 'evidence.json', report)
     return report
 
@@ -69,7 +69,7 @@ def require_evidence(evidence, base):
     if not (d.get('status') == 'complete' and d.get('original_preserved') and
             d.get('rawtherapee', {}).get('status') == 'passed' and d.get('rt_identity') == rt_identity() and
             d.get('base_sha256') == digest(base)):
-        raise RuntimeError('Matching successful CR3/PP3 spike evidence required before auto editing.')
+        raise RuntimeError('Matching successful RAW/PP3 engine-control evidence required before auto editing.')
     return d
 
 
@@ -114,7 +114,18 @@ def process(raw, base, evidence, out, scene='preserve', wb='camera', look='punch
         base_preview = out / 'baseline.pp3'
         base_preview.write_text(profile_text(base, preview=True))
         progress('Developing the original preview')
-        baseline_rgb = pixels(render_rt(copy, base_preview, out / 'baseline.jpg'))
+        try:
+            baseline_rgb = pixels(render_rt(copy, base_preview, out / 'baseline.jpg'))
+        except Exception as e:
+            manifest['decoding'] = {'status': 'failed', 'error': str(e)}
+            save_json(out / 'recipe.json', manifest)
+            raise RuntimeError(f'Unable to decode this RAW file with the installed processor: {e}') from e
+        if not np.isfinite(baseline_rgb).all() or min(baseline_rgb.shape[:2]) < 2:
+            raise ValueError('RAW decoding returned an invalid preview')
+        manifest['decoding'] = {'status': 'passed', 'method': 'RAW engine render with embedded ICC',
+                                'preview_dimensions': list(baseline_rgb.shape[:2]),
+                                'scope': 'This file decoded; visual color correctness is not certified'}
+        save_json(out / 'recipe.json', manifest)
         baseline = statistics(baseline_rgb)
         # Score exposure estimates on the already decoded linear preview. This
         # avoids a fresh full RAW demosaic for every quarter-stop candidate.

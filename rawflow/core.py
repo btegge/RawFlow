@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from PIL import Image, ImageCms, ImageOps
 import numpy as np
 
+from .formats import is_raw_candidate, RAW_TYPES
+
 ALGORITHM = "fast-presets-v3"
 
 
@@ -74,20 +76,31 @@ def doctor():
 def metadata(raw):
     exe = locate('exiftool')
     if not exe:
-        raise RuntimeError('ExifTool is required; install it before testing CR3 support.')
+        raise RuntimeError('ExifTool is required; install it before processing RAW files.')
     items = json.loads(execute([exe, '-j', '-n', '-Make', '-Model', '-ISO', '-ExposureTime',
                                '-FNumber', '-LensModel', '-WhiteBalance', '-ColorTemperature',
-                               '-ImageWidth', '-ImageHeight', '-RawImageSize', '-Compression', '-Canon:Quality', '-Canon:DualPixelRaw', raw]))
-    if len(items) != 1 or items[0].get('Model') != 'Canon EOS R7':
-        raise ValueError('This validation scope requires a Canon EOS R7 sample.')
-    return items[0]
+                               '-ImageWidth', '-ImageHeight', '-RawImageSize', '-Compression', '-Orientation', '-FileType', '-DNGVersion', '-CFARepeatPatternDim', '-PhotometricInterpretation', '-Canon:Quality', '-Canon:DualPixelRaw', raw]))
+    if len(items) != 1 or not isinstance(items[0], dict):
+        raise ValueError('Expected metadata for one RAW file')
+    data = items[0]
+    kind = str(data.get('FileType', '')).upper()
+    tiff_raw = kind == 'TIFF' and (data.get('DNGVersion') or data.get('CFARepeatPatternDim') or data.get('PhotometricInterpretation') in (32803, 34892))
+    if kind not in RAW_TYPES and not tiff_raw:
+        raise ValueError(f'Unrecognized RAW content ({kind or "missing file type"}); the extension alone is insufficient')
+    if data.get('Error'):
+        raise ValueError(str(data['Error']))
+    data['camera'] = {'make': data.get('Make'), 'model': data.get('Model'),
+                      'iso': data.get('ISO'), 'width': data.get('ImageWidth'),
+                      'height': data.get('ImageHeight'), 'orientation': data.get('Orientation'),
+                      'compression': data.get('Compression'), 'file_type': kind}
+    return data
 
 
 @contextmanager
 def protected_input(raw, directory, remove_copy=False):
     raw = Path(raw).resolve(strict=True)
-    if raw.suffix.lower() != '.cr3':
-        raise ValueError('Expected a .CR3 input')
+    if not is_raw_candidate(raw):
+        raise ValueError('Expected a candidate camera RAW file')
     before = digest(raw)
     folder = Path(directory)
     folder.mkdir(parents=True, exist_ok=False)

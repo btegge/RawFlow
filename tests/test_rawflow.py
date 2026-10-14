@@ -93,9 +93,9 @@ class EngineBoundaryTests(unittest.TestCase):
         p=subprocess.CompletedProcess(['rt','-c'],2,'RawTherapee, version 5.13','failed')
         with patch('rawflow.core.subprocess.run',return_value=p):
             with self.assertRaises(RuntimeError): execute(['rt','-c'])
-    def test_non_r7_metadata_rejected(self):
+    def test_non_raw_metadata_rejected(self):
         from rawflow.core import metadata
-        with patch('rawflow.core.locate',return_value='/exiftool'), patch('rawflow.core.execute',return_value='[{"Model":"Other camera"}]'):
+        with patch('rawflow.core.locate',return_value='/exiftool'), patch('rawflow.core.execute',return_value='[{"Model":"Other camera", "FileType":"JPEG"}]'):
             with self.assertRaises(ValueError): metadata('other.CR3')
     def test_existing_export_is_rejected(self):
         from rawflow.core import render_rt

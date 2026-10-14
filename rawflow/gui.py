@@ -16,6 +16,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageOps, ImageTk, ImageCms
 from .core import locate
+from .formats import is_raw_candidate, raw_patterns
 from .gui_jobs import BatchOptions, run_batch, completed_results
 
 PROJECT = Path(__file__).resolve().parents[1]
@@ -31,34 +32,12 @@ def configure_tools():
             os.environ[key]=path
 
 
-def load_image(path):
-    with Image.open(path) as source:
-        source.draft('RGB', (1800, 1400))
-        image = ImageOps.exif_transpose(source).convert('RGB')
-        if source.info.get('icc_profile'):
-            image = ImageCms.profileToProfile(image,
-                ImageCms.ImageCmsProfile(io.BytesIO(source.info['icc_profile'])),
-                ImageCms.createProfile('sRGB'), outputMode='RGB', renderingIntent=1)
-        image.thumbnail((1800, 1400), Image.Resampling.LANCZOS)
-        return image.copy()
+from .previews import load_image, photo_preview
 
 
 def camera_preview(path):
-    path = Path(path)
-    st = path.stat()
-    return _camera_preview(str(path), st.st_size, st.st_mtime_ns)
-
-
-@lru_cache(maxsize=12)
-def _camera_preview(path, size, modified):
-    exe = locate('exiftool')
-    if not exe:
-        raise RuntimeError('Camera preview needs ExifTool. Set its location in Setup.')
-    for tag in ('JpgFromRaw', 'PreviewImage'):
-        result = subprocess.run([exe, '-b', '-' + tag, str(path)], capture_output=True, timeout=30)
-        if result.returncode == 0 and result.stdout:
-            return load_image(io.BytesIO(result.stdout))
-    raise ValueError('This photo has no available camera preview. Its RAW export may still work.')
+    # Compatibility helper; GUI selection also supplies RAW fallback settings.
+    return photo_preview(path)[0]
 
 
 class PhotoView(ttk.Frame):
@@ -271,7 +250,7 @@ class RawFlowApp:
         if self.busy: return
         for path in paths:
             path=Path(path).resolve()
-            if path.suffix.lower()!='.cr3' or not path.is_file() or path in self.entries: continue
+            if not is_raw_candidate(path) or not path.is_file() or path in self.entries: continue
             key=self.tree.insert('', 'end',text=path.name,values=('Ready',))
             self.entries[path]={'key':key,'output':None,'error':None}
         if self.entries and select:
@@ -280,11 +259,11 @@ class RawFlowApp:
 
     def add_files(self):
         if not self.busy:
-            self.add_paths(filedialog.askopenfilenames(parent=self.root,title='Choose Canon RAW photos',filetypes=[('Canon RAW photos','*.CR3 *.cr3'),('All files','*')]))
+            self.add_paths(filedialog.askopenfilenames(parent=self.root,title='Choose RAW photos',filetypes=[('Camera RAW photos',raw_patterns()),('All files','*')]))
     def add_folder(self):
         if self.busy:return
         folder=filedialog.askdirectory(parent=self.root,title='Choose a photo folder')
-        if folder:self.add_paths(sorted(p for p in Path(folder).iterdir() if p.suffix.lower()=='.cr3'))
+        if folder:self.add_paths(sorted(p for p in Path(folder).iterdir() if is_raw_candidate(p)))
     def remove(self):
         if self.busy:return
         keys=set(self.tree.selection())
@@ -308,6 +287,7 @@ class RawFlowApp:
         self.before.clear('Loading preview…');self.after.clear('Preparing draft preview…')
         if entry['error']:self.details.set(f'{path.name}: {entry["error"]}')
         else:self.details.set(path.name)
+        base, evidence = self.base, self.evidence
         look = LABELS[self.look.get()]
         strength = self.strength.get().lower()
         scene = 'normal' if self.scene.get() == 'Brighten toward daylight' else 'preserve'
@@ -316,14 +296,14 @@ class RawFlowApp:
             try:
                 if output and not force_draft:
                     before_path=output/'baseline.jpg'
-                    before=load_image(before_path) if before_path.exists() else camera_preview(path)
+                    before, before_caption = (load_image(before_path), 'Before · neutral RAW') if before_path.exists() else photo_preview(path,base,evidence)
                     recipe=json.loads((output/'recipe.json').read_text());settings=recipe.get('settings',{})
                     after=load_image(Path(recipe.get('export_path',output/'export.jpg')))
-                    self.events.put(('preview',token,before,after,'Before · neutral RAW' if before_path.exists() else 'Before · camera preview',settings))
+                    self.events.put(('preview',token,before,after,before_caption,settings))
                 else:
-                    before = camera_preview(path)
+                    before, caption = photo_preview(path,base,evidence)
                     after = draft_preview(before, look, scene, wb, strength)
-                    self.events.put(('draft', token, before, after, look+' · '+strength))
+                    self.events.put(('draft', token, before, after, look+' · '+strength, caption))
             except Exception as e:self.events.put(('preview_error',token,str(e)))
         if self.preview_future:
             self.preview_future.cancel()
@@ -340,7 +320,7 @@ class RawFlowApp:
     def start(self):
         if self.busy:return
         paths=list(self.entries)
-        if not paths:messagebox.showinfo('Add photos','Choose some CR3 photos first.',parent=self.root);return
+        if not paths:messagebox.showinfo('Add photos','Choose some RAW photos first.',parent=self.root);return
         if not self.output.get().strip():messagebox.showerror('Choose a destination','Select a folder for your edits.',parent=self.root);return
         options=BatchOptions(self.base,self.evidence,Path(self.output.get()).expanduser().resolve(),
             LABELS[self.look.get()],
@@ -376,10 +356,10 @@ class RawFlowApp:
                                 self.events.put(('preview_error', t, str(e)))
                         self.preview_pool.submit(load_edited)
                 elif kind=='draft' and event[1]==self.preview_token:
-                    _,_,before,after,look=event
-                    self.before.show(before,'Before · camera preview')
+                    _,_,before,after,look,caption=event
+                    self.before.show(before,caption)
                     self.after.show(after,'Draft · '+look.replace('-', ' ').title())
-                    self.details.set('Fast approximate preview from the camera JPEG. RAW processing may change brightness, color, and recovered detail.')
+                    self.details.set('Fast approximate preset preview. RAW processing may change brightness, color, and recovered detail.')
                 elif kind=='rendered_preview' and event[1]==self.preview_token:
                     self.before.show(event[2],'Before · neutral RAW')
                     self.after.show(event[3],'After · RAW preview')
@@ -413,7 +393,7 @@ class RawFlowApp:
                     self.set_busy(False);messagebox.showerror('Unable to open batch',event[1],parent=self.root)
                 elif kind=='validation_done':
                     self.evidence=event[1];self.save_preferences();self.set_busy(False);self.status.set('Compatibility check passed. Ready to edit.')
-                    messagebox.showinfo('Ready to edit','The selected CR3 photo passed the processor and profile checks.',parent=self.root)
+                    messagebox.showinfo('Ready to edit','The selected RAW photo passed the processor and profile checks.',parent=self.root)
                 elif kind=='validation_failed':
                     self.set_busy(False);self.status.set('Compatibility check failed.')
                     messagebox.showerror('Compatibility check failed',event[1],parent=self.root)
@@ -485,7 +465,7 @@ class RawFlowApp:
             # A new record may be missing, so only validate the three input files.
             for v in vars[:3]:
                 if not Path(v.get()).is_file():messagebox.showerror('File not found',v.get(),parent=win);return
-            if not self.selected_path:messagebox.showinfo('Choose a sample','Add and select a CR3 photo first.',parent=win);return
+            if not self.selected_path:messagebox.showinfo('Choose a sample','Add and select a RAW photo first.',parent=win);return
             os.environ['RAWFLOW_RAWTHERAPEE_CLI']=vars[0].get();os.environ['RAWFLOW_EXIFTOOL']=vars[1].get();self.base=Path(vars[2].get())
             sample=self.selected_path;base=self.base;win.destroy();self.set_busy(True)
             self.stop_button.configure(state='disabled');self.status.set('Checking the sample photo. This can take a few minutes…')

@@ -10,3 +10,7 @@ A tested file is evidence for that file and engine build, not certification of e
 ## 0.4 — faster editing, clean outputs, six presets
 
 Completed: three-render default path, bounded pixel hashing, engine identity caching, four-thread rendering, immediate cached draft previews, early RAW previews, six presets, and JPEG-only batch destinations with separate editable records. Validated on four CR3 scenes, all six presets, strict pixel replay, and the desktop UI. See `performance.md` for measured timings and remaining limits.
+
+## 0.6 — multi-camera stages 1 and 2
+
+Completed: shared candidate format list, generic optional metadata, non-RAW content rejection, per-file decode reporting, mixed-file batch failures, expanded preview extraction and persistent RAW-render fallback. Stage 3 is pending other-camera samples; no broader camera compatibility is claimed.

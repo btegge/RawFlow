@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
 import json
-from .core import digest
+from .formats import is_raw_candidate
 from .pipeline import require_evidence
 from .storage import export_photo, records_root
 
@@ -64,7 +64,7 @@ def completed_results(folder):
             if data.get('status') == 'complete' and export.is_file():
                 source = Path(data['input'])
                 if not source.is_file():
-                    copies = list((output / 'input').glob('*.CR3')) + list((output / 'input').glob('*.cr3'))
+                    copies = sorted(p for p in (output/'input').glob('*') if p.is_file() and is_raw_candidate(p))
                     if not copies:
                         continue
                     source = copies[0]

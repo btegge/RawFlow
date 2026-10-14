@@ -10,7 +10,7 @@ from .pipeline import spike, process, replay, export_profile
 
 
 def main():
-    p = argparse.ArgumentParser(description='RawFlow: experimental, evidence-gated R7 RAW pipeline')
+    p = argparse.ArgumentParser(description='RawFlow: experimental, evidence-gated camera RAW pipeline')
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('doctor')
     s = sub.add_parser('spike')
@@ -51,11 +51,18 @@ def main():
                 raise ValueError('No inputs matched')
             from .core import digest
             result = []
+            failures = False
             for index, raw in enumerate(paths):
                 target = args.out / f'{index+1:03d}-{raw.stem}-{args.look}-{args.strength}.jpg'
-                record = export_photo(raw, args.base, args.evidence, target, args.scene, args.wb, args.look, strength=args.strength)
-                result.append({'jpeg': str(target.resolve()), 'recipe': str(record/'recipe.json')})
+                try:
+                    record = export_photo(raw, args.base, args.evidence, target, args.scene, args.wb, args.look, strength=args.strength)
+                    result.append({'jpeg': str(target.resolve()), 'recipe': str(record/'recipe.json')})
+                except Exception as e:
+                    failures = True
+                    result.append({'input': str(raw), 'status': 'failed', 'error': str(e)})
         print(json.dumps(result, indent=2))
+        if args.command == 'edit' and failures:
+            return 1
         if args.command == 'spike' and result['rawtherapee']['status'] != 'passed':
             return 1
         return 0
